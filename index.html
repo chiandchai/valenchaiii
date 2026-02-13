@@ -1,0 +1,469 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Will you be my Valentine?</title>
+<style>
+  :root{
+    --bg:#f3e6ff;
+    --text:#2b2b2b;
+    --yes-top: #e9d5ff;
+    --yes-bottom: #cdb4ff;
+    --no-top:  #ffb6c1;
+    --no-bottom:#ff7b92;
+    --focus-outline: rgba(138,79,255,0.18);
+  }
+
+  /* Use a consistent system font stack (works the same on iPhone & desktop) */
+  html,body{
+    height:100%;
+    margin:0;
+    padding:0;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-style: normal;       /* prevents slanted / italic fallback on some platforms */
+    background:var(--bg);
+    color:var(--text);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+
+  .wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1.5rem;box-sizing:border-box}
+  .card{width:100%;max-width:820px;text-align:center;padding:1.6rem;border-radius:14px;background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.18));box-shadow:0 8px 30px rgba(0,0,0,0.12);overflow:visible;position:relative}
+  .preview{display:none;width:min(66vw,520px);max-width:520px;border-radius:12px;box-shadow:0 8px 20px rgba(0,0,0,0.12);background:linear-gradient(180deg,#fff,#fbf6ff);margin:0 auto 1rem auto;opacity:0;transform:translateY(8px) scale(0.98);transition:opacity 260ms ease,transform 260ms ease,width 300ms ease,max-width 300ms ease;border:4px solid transparent;object-fit:cover}
+  .preview.visible{opacity:1;transform:translateY(0) scale(1)}
+  /* bigger preview used for zachi6 */
+  .preview.big{width:min(88vw,720px);max-width:720px;border-radius:14px}
+  .preview.clickable{cursor:pointer;outline-offset:6px}
+  h1.question{margin:0 0 1rem 0;font-size:clamp(1.5rem,4.2vw,2.6rem);color:#2b1a3a}
+  .btn-row{display:flex;gap:1rem;justify-content:center;align-items:center;flex-wrap:wrap;margin-top:0.6rem;transition:all 220ms ease}
+  .btn{border:none;cursor:pointer;border-radius:999px;padding:0.6rem 1.3rem;min-width:96px;height:44px;font-size:1rem;font-weight:700;box-shadow:0 8px 18px rgba(0,0,0,0.12);transition:transform 220ms ease,background 220ms,left 320ms ease,top 320ms ease;user-select:none;position:relative;font-style:normal}
+  /* YES: light purple — visible against the background */
+  .btn-yes{
+    background: linear-gradient(180deg, var(--yes-top), var(--yes-bottom));
+    color: #2b1a3a; /* dark purple text for contrast */
+    transform-origin:center center;
+  }
+  /* NO: only pink — removed random colors */
+  .btn-no {
+    background: linear-gradient(180deg, var(--no-top), var(--no-bottom));
+    color: #ffffff; /* white text for readable contrast on pink */
+    z-index:1000;
+  }
+
+  .no-animated{animation:wiggle 420ms ease-in-out}
+  @keyframes wiggle{0%{transform:translateX(0)}25%{transform:translateX(-6px) rotate(-2deg)}50%{transform:translateX(6px) rotate(2deg)}75%{transform:translateX(-4px) rotate(-1deg)}100%{transform:translateX(0)}}
+  p.sub{margin-top:1rem;opacity:0.95;font-size:0.95rem}
+
+  /* Large message box for long text - now set to show full content (no internal scroll) */
+  .long-message{
+    display:none;
+    margin:1rem auto 0 auto;
+    width:calc(100% - 3rem);
+    max-width:760px;
+    background:linear-gradient(180deg,#ffffff,#fffbff);
+    padding:1.2rem 1.1rem;
+    border-radius:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.10);
+    text-align:left;
+    /* inherit the system font so it's consistent across devices */
+    font-family:inherit;
+    font-size:1rem;
+    line-height:1.45;
+    color:var(--text);
+    max-height: none;
+    overflow: visible;
+    white-space:pre-wrap;
+  }
+
+  /* heading that will appear inside the long message */
+  .long-message .final-heading{
+    margin:0 0 0.8rem 0;
+    font-size:clamp(1.25rem,3.2vw,1.8rem);
+    color:#2b1a3a;
+    text-align:center;
+  }
+
+  @media (max-width:420px){.preview{width:90vw}.btn{min-width:80px;height:40px;font-size:0.95rem;padding:0.5rem 1rem}.long-message{padding:0.8rem;font-size:0.95rem}}
+  .btn:focus{outline:3px solid var(--focus-outline);outline-offset:3px}
+  /* small helper text under question */
+  .hint-small{font-family:inherit;font-size:0.8rem;margin-top:0.4rem;opacity:0.95}
+
+  /* Heart container (raining hearts) */
+  .heart-container{
+    position:absolute;
+    pointer-events:none;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    overflow:visible;
+    z-index:1200;
+  }
+  .heart{
+    position:absolute;
+    top:-10vh;
+    user-select:none;
+    pointer-events:none;
+    will-change:transform,opacity;
+    font-size:20px;
+    opacity:0;
+    transform:translateY(-10vh) rotate(0deg);
+    animation-name: fall;
+    animation-timing-function: linear;
+    animation-fill-mode: forwards;
+  }
+  @keyframes fall{
+    0%{transform: translateY(-10vh) rotate(0deg); opacity:0}
+    10%{opacity:1}
+    100%{transform: translateY(110vh) rotate(380deg); opacity:0}
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <main class="card" role="main" aria-labelledby="q">
+      <div class="heart-container" id="heartContainer" aria-hidden="true"></div>
+
+      <img id="preview" class="preview" src="" alt="" tabindex="0" />
+      <h1 id="q" class="question">Will you be my Valentine?</h1>
+
+      <div class="btn-row" id="btnRow" role="group" aria-label="Answer choices">
+        <button id="yesBtn" class="btn btn-yes" aria-pressed="false">YES</button>
+        <button id="noBtn"  class="btn btn-no"  aria-pressed="false">NO</button>
+      </div>
+
+      <!-- long message placeholder will be injected/used when zachi6 is shown -->
+      <div id="longMessage" class="long-message" aria-live="polite"></div>
+
+    </main>
+  </div>
+
+<script>
+(function(){
+  // your 4 cycle images for NO and one YES image
+  const images = ['images/zachi1.jpg','images/zachi2.jpg','images/zachi3.jpg','images/zachi4.jpg'];
+  const yesImage = 'images/zachi5.jpg';
+  const finalImage = 'images/zachi6.jpg'; // shown after clicking zachi5
+
+  // phrases shown in the question (NOT on the No button)
+  const plead = ["Please?","Pretty please?","Baobei wait","Baby? huhu..","Please say yes"];
+
+  const card = document.querySelector('.card');
+  const preview = document.getElementById('preview');
+  const question = document.getElementById('q');
+  const btnRow = document.getElementById('btnRow');
+  const noBtn = document.getElementById('noBtn');
+  const yesBtn = document.getElementById('yesBtn');
+  const longMessage = document.getElementById('longMessage');
+  const heartContainer = document.getElementById('heartContainer');
+
+  let idx = -1;           // cycles 0..3
+  let lastPlead = '';
+  let yesScale = 1;
+  let noIsAbsolute = false;
+
+  // stage: 0 = initial; 1 = yes shown (zachi5 visible & clickable); 2 = final shown (zachi6 + message + hearts)
+  let stage = 0;
+  let heartsStarted = false;
+
+  const rnd = n => Math.floor(Math.random()*n);
+
+  // show single image in the preview area
+  function showImage(i, srcOverride){
+    const src = srcOverride || images[i];
+    idx = (typeof i === 'number') ? i : idx;
+    if (preview.style.display !== 'block') {
+      preview.style.display = 'block';
+      requestAnimationFrame(()=> {
+        preview.src = src;
+        preview.alt = srcOverride ? 'Picture' : `Picture ${i+1}`;
+        preview.classList.add('visible');
+      });
+    } else {
+      preview.classList.remove('visible');
+      setTimeout(()=> {
+        preview.src = src;
+        preview.alt = srcOverride ? 'Picture' : `Picture ${i+1}`;
+        void preview.offsetWidth;
+        preview.classList.add('visible');
+      }, 220);
+    }
+  }
+
+  function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+  function pageToCardCoords(pageX,pageY){
+    const r = card.getBoundingClientRect();
+    return {
+      left: clamp(pageX - r.left - (noBtn.offsetWidth/2), 8, r.width - noBtn.offsetWidth - 8),
+      top:  clamp(pageY - r.top  - (noBtn.offsetHeight/2),8, r.height - noBtn.offsetHeight - 8)
+    };
+  }
+
+  // move No button somewhere near the preview/question area
+  function moveNoRandom(){
+    card.style.position = card.style.position || 'relative';
+    if (!noIsAbsolute){
+      const btnRect = noBtn.getBoundingClientRect();
+      const cardRect = card.getBoundingClientRect();
+      const curLeft = btnRect.left - cardRect.left;
+      const curTop  = btnRect.top  - cardRect.top;
+      noBtn.style.position = 'absolute';
+      noBtn.style.left = `${curLeft}px`;
+      noBtn.style.top  = `${curTop}px`;
+      noIsAbsolute = true;
+    }
+
+    const refRect = preview.style.display==='block' ? preview.getBoundingClientRect() : question.getBoundingClientRect();
+    const cardRect = card.getBoundingClientRect();
+    const refCenterX = (refRect.left + refRect.right)/2;
+    const refCenterY = (refRect.top + refRect.bottom)/2;
+    const center = pageToCardCoords(refCenterX, refCenterY);
+
+    const maxX = Math.max(40, Math.min(160, Math.floor(cardRect.width * 0.22)));
+    const maxY = Math.max(20, Math.min(120, Math.floor(cardRect.height * 0.18)));
+    const randX = (Math.random()*2 - 1) * maxX;
+    const randY = (Math.random()*2 - 1) * maxY;
+
+    const targetLeft = clamp(center.left + randX, 8, cardRect.width - noBtn.offsetWidth - 8);
+    const targetTop  = clamp(center.top + randY, 8, cardRect.height - noBtn.offsetHeight - 8);
+
+    noBtn.style.transition = 'left 300ms cubic-bezier(.2,.8,.2,1), top 300ms cubic-bezier(.2,.8,.2,1)';
+    noBtn.style.left = `${targetLeft}px`;
+    noBtn.style.top  = `${targetTop}px`;
+    noBtn.style.zIndex = 1100;
+  }
+
+  // pick a pleading phrase without repeating
+  function pickPlead(){
+    let p = plead[rnd(plead.length)];
+    if (p === lastPlead && plead.length>1){
+      const i = plead.indexOf(p);
+      p = plead[(i+1) % plead.length];
+    }
+    lastPlead = p;
+    return p;
+  }
+
+  // NO pressed: question text changes, button moves, preview cycles through 4 images
+  function handleNo(){
+    // change question to pleading phrase (No button text stays "No")
+    question.textContent = pickPlead();
+
+    // animate no slightly
+    noBtn.classList.remove('no-animated');
+    void noBtn.offsetWidth;
+    noBtn.classList.add('no-animated');
+
+    // cosmetic recolor — fixed pink only
+    noBtn.style.background = 'linear-gradient(180deg, var(--no-top), var(--no-bottom))';
+    noBtn.style.color = '#ffffff';
+
+    // move No near the preview/question
+    moveNoRandom();
+
+    // center Yes (btnRow centers because noBtn is absolute now)
+    btnRow.style.justifyContent = 'center';
+
+    // increase Yes size a bit (visual begging)
+    yesScale *= 1.18;
+    yesBtn.style.transform = `scale(${yesScale})`;
+    const shadowScale = Math.min(1 + (yesScale - 1) * 0.12, 4);
+    yesBtn.style.boxShadow = `0 ${8 * shadowScale}px ${18 * shadowScale}px rgba(0,0,0,0.14)`;
+
+    // advance image index and show next image in cycle
+    idx = (idx + 1) % images.length;
+    showImage(idx);
+
+    noBtn.setAttribute('aria-pressed','true');
+  }
+
+  // YES pressed: show final image and finish (zachi5) and add hint
+  function handleYes(){
+    showImage(null, yesImage);
+
+    btnRow.style.display = 'none';
+    noBtn.style.display = 'none';
+    yesBtn.style.display = 'none';
+
+    // Change main text
+    question.textContent = "I knew you'd say that!";
+
+    // Create small sub text (hint to press the picture)
+    const smallText = document.createElement("p");
+    smallText.textContent = "please press my picture";
+    smallText.className = 'hint-small';
+    smallText.style.fontFamily = "inherit";
+    smallText.style.fontSize = "0.8rem";
+    smallText.style.marginTop = "0.4rem";
+    smallText.style.opacity = "0.95";
+
+    // Append below the question
+    question.insertAdjacentElement("afterend", smallText);
+
+    // make preview clickable and focusable & show yesImage
+    preview.classList.add('clickable');
+    preview.setAttribute('role','button');
+    preview.setAttribute('aria-label','Press to continue');
+    preview.setAttribute('tabindex','0');
+    preview.style.cursor = 'pointer';
+
+    // ensure stage is set so preview click triggers final stage
+    stage = 1;
+
+    yesBtn.setAttribute('aria-pressed','true');
+  }
+
+  // When preview is clicked after YES, show final image and a long message,
+  // and move the "I knew you'd say that!" text into the long-message box as its heading.
+  function handlePreviewClick(){
+    if (stage !== 1) return; // only respond when in stage 1
+
+    // swap to final image (zachi6)
+    showImage(null, finalImage);
+
+    // enlarge preview a bit
+    preview.classList.add('big');
+
+    // remove the small hint (if present)
+    const maybeHint = question.nextElementSibling;
+    if (maybeHint && maybeHint.classList && maybeHint.classList.contains('hint-small')) {
+      maybeHint.remove();
+    }
+
+    // Prepare the long message content. We'll put the heading inside the message box.
+    const headingText = "Happy Valentine’s, Tisay";
+    const placeholderBody = [
+      
+      "I want you to know how grateful I am for you.",
+      "",
+      "You make my days brighter just by being there for me.",
+      "",
+      "Thank you for your patience, your understanding, and for always choosing to stay",
+      "",
+      "I may not be the best version of myself right now, but I'm trying to become the person you deserve",
+      "",
+      "I love you.",
+      "",
+      "— Zachi"
+    ].join("\n");
+
+    // Hide the original question heading so we don't duplicate it on the page
+    question.style.display = 'none';
+
+    // Inject heading + body into the long-message container (escaped)
+    longMessage.innerHTML = `
+      <div class="final-heading" role="heading" aria-level="2">${escapeHtml(headingText)}</div>
+      <div class="final-body" style="white-space:pre-wrap;">${escapeHtml(placeholderBody)}</div>
+    `;
+    longMessage.style.display = 'block';
+
+    // ensure the long-message is fully visible (no internal scroll)
+    longMessage.style.maxHeight = 'none';
+    longMessage.style.overflow = 'visible';
+
+    // If desired, we can also scroll the page to reveal the message:
+    setTimeout(()=> {
+      longMessage.scrollIntoView({behavior:'smooth',block:'center'});
+    }, 250);
+
+    // start raining hearts once (only once)
+    if (!heartsStarted) {
+      startHearts();
+      heartsStarted = true;
+    }
+
+    // update ARIA and state so it doesn't react to more clicks
+    preview.removeAttribute('role');
+    preview.removeAttribute('aria-label');
+    preview.classList.remove('clickable');
+    preview.style.cursor = 'default';
+    stage = 2;
+  }
+
+  // simple helper to escape text for safe insertion inside HTML
+  function escapeHtml(str){
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;")
+      .replace(/\n/g, "<br>");
+  }
+
+  // Heart generator: create many hearts with random positions, size, colors and durations.
+  function startHearts(){
+    // light purple palette
+    const colors = ['#d8c1ff','#d6b3ff','#e9d5ff','#c9a9ff','#d1c4ff','#cdb4ff'];
+    const total = 36; // number of hearts generated
+    const durationRange = [3500, 7000]; // ms
+    const sizeRange = [18, 48]; // px
+
+    for (let i = 0; i < total; i++){
+      // stagger creation slightly
+      setTimeout(()=> createHeart(colors, durationRange, sizeRange), Math.random() * 900);
+    }
+
+    // optional: keep a second wave after a short delay for a fuller finish
+    setTimeout(()=>{
+      for (let i = 0; i < Math.floor(total/2); i++){
+        setTimeout(()=> createHeart(colors, durationRange, sizeRange), Math.random() * 900);
+      }
+    }, 900);
+
+    // remove any remaining hearts after a while (cleanup)
+    setTimeout(()=> {
+      while (heartContainer.firstChild) heartContainer.removeChild(heartContainer.firstChild);
+    }, 14000);
+  }
+
+  function createHeart(colors, durationRange, sizeRange){
+    const heart = document.createElement('span');
+    heart.className = 'heart';
+    heart.textContent = '❤';
+
+    // random left position across card width (0% - 100%)
+    const left = Math.random() * 100;
+    heart.style.left = `${left}%`;
+
+    // random size
+    const size = Math.floor(sizeRange[0] + Math.random() * (sizeRange[1] - sizeRange[0]));
+    heart.style.fontSize = `${size}px`;
+
+    // random color
+    heart.style.color = colors[Math.floor(Math.random()*colors.length)];
+
+    // random duration
+    const dur = Math.floor(durationRange[0] + Math.random() * (durationRange[1] - durationRange[0]));
+    heart.style.animationDuration = `${dur}ms`;
+
+    // slight rotation start
+    const rotateStart = Math.floor(Math.random()*360);
+    heart.style.transform = `translateY(-10vh) rotate(${rotateStart}deg)`;
+
+    heartContainer.appendChild(heart);
+
+    // remove heart after animation finishes
+    heart.addEventListener('animationend', ()=> heart.remove(), {once:true});
+  }
+
+  // allow keyboard activation on the preview (Enter/Space)
+  function keyActivate(e,h){ if (e.key==='Enter' || e.key===' ' || e.key==='Spacebar'){ e.preventDefault(); h(); } }
+
+  // event wiring
+  noBtn.addEventListener('click', handleNo, {passive:true});
+  noBtn.addEventListener('keydown', e => keyActivate(e, handleNo));
+  yesBtn.addEventListener('click', handleYes);
+  yesBtn.addEventListener('keydown', e => keyActivate(e, handleYes));
+
+  preview.addEventListener('click', handlePreviewClick);
+  preview.addEventListener('keydown', e => keyActivate(e, handlePreviewClick));
+
+  // initialize: preview hidden
+  preview.src = '';
+  preview.alt = '';
+})();
+</script>
+</body>
+</html>
